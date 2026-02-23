@@ -1,0 +1,10 @@
+{
+  "id": "obsidian-assistant",
+  "name": "Obsidian Assistant",
+  "version": "0.2.0",
+  "minAppVersion": "1.4.0",
+  "description": "Local assistant for your vault",
+  "author": "Local",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}
