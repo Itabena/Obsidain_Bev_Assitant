@@ -303,34 +303,46 @@ class AssistantView extends ItemView {
       await saveChatToVault(session);
     };
 
+    const stripMarkdownForTitle = (text) => {
+      let t = String(text || '');
+      t = t.replace(/```[\s\S]*?```/g, ' ');
+      t = t.replace(/`[^`]*`/g, ' ');
+      t = t.replace(/\$[^$]*\$/g, ' ');
+      t = t.replace(/!\[[^\]]*\]\([^)]+\)/g, ' ');
+      t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+      t = t.replace(/^#+\s+/gm, '');
+      t = t.replace(/^>\s+/gm, '');
+      t = t.replace(/^\s*[-*+]\s+/gm, '');
+      t = t.replace(/\s+/g, ' ').trim();
+      return t;
+    };
+
+    const makeLocalTitle = (session) => {
+      if (!session || !session.messages) return '';
+      const lastUser = [...session.messages].reverse().find((m) => m.role === 'user' && (m.text || '').trim());
+      let base = lastUser ? lastUser.text : (session.messages.slice(-1)[0]?.text || '');
+      base = stripMarkdownForTitle(base);
+      if (!base) return '';
+      const words = base.split(/\s+/).slice(0, 8);
+      if (words.length < 2) return 'General chat';
+      let title = words.join(' ');
+      if (title.length > 60) title = title.slice(0, 60).trim();
+      return title;
+    };
+
     const maybeAutoTitle = async (session) => {
       if (!session || session.autoTitleApplied) return;
       if (!DEFAULT_TITLE_RE.test(session.title || '')) return;
       if ((session.messages || []).length < AUTO_TITLE_MIN_MESSAGES) return;
-      try {
-        const history = (session.messages || [])
-          .filter((m) => m.role === 'user' || m.role === 'assistant')
-          .slice(-10)
-          .map((m) => ({ role: m.role, content: m.text }));
-        const resp = await fetch(`${this.plugin.settings.serverUrl}/title`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: history })
-        });
-        if (!resp.ok) return;
-        const data = await resp.json();
-        const title = (data.title || '').trim();
-        if (!title) return;
-        const dateStr = new Date().toISOString().slice(0, 10);
-        session.title = `${dateStr} - ${title}`;
-        session.autoTitleApplied = true;
-        await renameChatFile(session);
-        await this.plugin.saveSettings();
-        renderSessionList();
-        await saveChatToVault(session);
-      } catch (e) {
-        // ignore title errors
-      }
+      const title = makeLocalTitle(session);
+      if (!title) return;
+      const dateStr = new Date().toISOString().slice(0, 10);
+      session.title = `${dateStr} - ${title}`;
+      session.autoTitleApplied = true;
+      await renameChatFile(session);
+      await this.plugin.saveSettings();
+      renderSessionList();
+      await saveChatToVault(session);
     };
 
     let assistantReplyCount = 0;
