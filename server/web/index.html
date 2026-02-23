@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Obsidian Vault Assistant</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --accent: #14b8a6;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      background: linear-gradient(180deg, #0b1021, #0f172a);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 12px 18px;
+      border-bottom: 1px solid #1f2937;
+      background: #0b1021;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+    }
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      max-width: 1000px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 16px;
+      gap: 12px;
+    }
+    #chat {
+      background: var(--panel);
+      border: 1px solid #1f2937;
+      border-radius: 12px;
+      padding: 16px;
+      overflow-y: auto;
+      min-height: 300px;
+    }
+    .msg {
+      margin-bottom: 16px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      padding: 8px 10px;
+      border-radius: 8px;
+      max-width: 92%;
+      border: 1px solid transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .msg.user { color: #cbd5f5; background: #0f172a; border-color: var(--accent); margin-left: auto; }
+    .msg.assistant { color: var(--text); background: #0b1021; border-color: #1f2937; margin-right: auto; }
+    .role {
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .msg.user .role { color: var(--accent); }
+    .meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    form {
+      background: var(--panel);
+      border: 1px solid #1f2937;
+      border-radius: 12px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+    textarea {
+      width: 100%;
+      min-height: 70px;
+      resize: vertical;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      padding: 10px;
+      background: #0f172a;
+      color: var(--text);
+      font-size: 14px;
+    }
+    button {
+      background: var(--accent);
+      color: #062f2c;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .controls input { accent-color: var(--accent); }
+    .settings {
+      margin-top: 8px;
+      padding: 8px;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      background: #0b1021;
+      display: grid;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .settings-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+    .settings label { display: flex; gap: 6px; align-items: center; }
+    .settings select {
+      background: #0f172a;
+      color: var(--text);
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 4px 8px;
+    }
+    .diff {
+      background: #0b1021;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      padding: 10px;
+      color: #d1fae5;
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 12px;
+      overflow-x: auto;
+    }
+    .actions {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+    }
+    .actions button {
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .actions .reject {
+      background: #334155;
+      color: #e2e8f0;
+    }
+    .assistant-copy {
+      margin-top: 6px;
+      background: #334155;
+      color: #e2e8f0;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Obsidian Vault Assistant</h1>
+  </header>
+  <main>
+    <div id="chat"></div>
+    <form id="chat-form">
+      <div>
+        <textarea id="message" placeholder="Ask about your vault or papers, or write an edit instruction..."></textarea>
+        <div class="controls">
+          <label><input type="checkbox" id="use-web" /> Use web search</label>
+          <label><input type="checkbox" id="edit-mode" /> Edit mode</label>
+          <input id="edit-path" type="text" placeholder="Note path (relative ok)" style="flex:1; min-width: 220px;"/>
+        </div>
+        <div class="settings">
+          <div class="settings-row">
+            <span>Mode</span>
+            <select id="mode-select">
+              <option value="safe">Safe</option>
+              <option value="power">Power</option>
+              <option value="full">Full developer</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label><input type="checkbox" id="read-only" /> Read only</label>
+            <label><input type="checkbox" id="allow-edit" /> Edit with approval</label>
+            <label><input type="checkbox" id="allow-terminal" /> Terminal (ask first)</label>
+            <label><input type="checkbox" id="allow-python" /> Python (ask first)</label>
+            <label><input type="checkbox" id="allow-self-improve" /> Self-improve (ask first)</label>
+          </div>
+        </div>
+      </div>
+      <button type="submit">Send</button>
+    </form>
+  </main>
+  <script>
+    const chat = document.getElementById("chat");
+    const form = document.getElementById("chat-form");
+    const messageInput = document.getElementById("message");
+    const useWeb = document.getElementById("use-web");
+    const editMode = document.getElementById("edit-mode");
+    const editPath = document.getElementById("edit-path");
+    const modeSelect = document.getElementById("mode-select");
+    const readOnlyToggle = document.getElementById("read-only");
+    const allowEditToggle = document.getElementById("allow-edit");
+    const allowTerminalToggle = document.getElementById("allow-terminal");
+    const allowPythonToggle = document.getElementById("allow-python");
+    const allowSelfImproveToggle = document.getElementById("allow-self-improve");
+
+    function addMessage(text, cls, sources) {
+      const div = document.createElement("div");
+      div.className = `msg ${cls}`;
+      const role = document.createElement("div");
+      role.className = "role";
+      role.textContent = cls === "user" ? "You" : "Assistant";
+      div.appendChild(role);
+      const body = document.createElement("div");
+      body.textContent = text;
+      div.appendChild(body);
+      chat.appendChild(div);
+      if (cls === "assistant") {
+        const copyBtn = document.createElement("button");
+        copyBtn.textContent = "Copy";
+        copyBtn.className = "assistant-copy";
+        copyBtn.type = "button";
+        copyBtn.addEventListener("click", () => navigator.clipboard.writeText(text));
+        chat.appendChild(copyBtn);
+      }
+      if (sources && sources.length) {
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = "Sources: " + sources.map(s => `${s.label} ${s.path}`).join(" | ");
+        chat.appendChild(meta);
+      }
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function addDiff(diffText, token, path) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "msg assistant";
+      const title = document.createElement("div");
+      title.textContent = `Proposed edit for ${path}`;
+      const pre = document.createElement("pre");
+      pre.className = "diff";
+      pre.textContent = diffText || "(no changes)";
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      const applyBtn = document.createElement("button");
+      applyBtn.type = "button";
+      applyBtn.textContent = "Apply";
+      const rejectBtn = document.createElement("button");
+      rejectBtn.type = "button";
+      rejectBtn.textContent = "Reject";
+      rejectBtn.className = "reject";
+      actions.appendChild(applyBtn);
+      actions.appendChild(rejectBtn);
+      wrapper.appendChild(title);
+      wrapper.appendChild(pre);
+      wrapper.appendChild(actions);
+      chat.appendChild(wrapper);
+      chat.scrollTop = chat.scrollHeight;
+
+      applyBtn.addEventListener("click", async () => {
+        const resp = await fetch("/edit/apply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token })
+        });
+        if (!resp.ok) {
+          addMessage("Apply failed.", "assistant");
+          return;
+        }
+        addMessage("Change applied.", "assistant");
+        actions.remove();
+      });
+
+      rejectBtn.addEventListener("click", async () => {
+        await fetch("/edit/reject", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token })
+        });
+        addMessage("Change rejected. No edits were applied.", "assistant");
+        actions.remove();
+      });
+    }
+
+    async function loadSettings() {
+      try {
+        const resp = await fetch("/settings");
+        if (!resp.ok) return;
+        const data = await resp.json();
+        applySettings(data);
+      } catch (e) {}
+    }
+
+    function applySettings(data) {
+      if (data.mode) modeSelect.value = data.mode;
+      readOnlyToggle.checked = !!data.read_only;
+      allowEditToggle.checked = !!data.allow_edit;
+      allowTerminalToggle.checked = !!data.allow_terminal;
+      allowPythonToggle.checked = !!data.allow_python;
+      allowSelfImproveToggle.checked = !!data.allow_self_improve;
+      editMode.disabled = !data.allow_edit;
+      editPath.disabled = !data.allow_edit;
+      if (!data.allow_edit) {
+        editMode.checked = false;
+      }
+    }
+
+    async function updateSettings(payload) {
+      try {
+        const resp = await fetch("/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        applySettings(data);
+      } catch (e) {}
+    }
+
+    modeSelect.addEventListener("change", () => updateSettings({ mode: modeSelect.value }));
+    readOnlyToggle.addEventListener("change", () => updateSettings({ read_only: readOnlyToggle.checked }));
+    allowEditToggle.addEventListener("change", () => updateSettings({ allow_edit: allowEditToggle.checked }));
+    allowTerminalToggle.addEventListener("change", () => updateSettings({ allow_terminal: allowTerminalToggle.checked }));
+    allowPythonToggle.addEventListener("change", () => updateSettings({ allow_python: allowPythonToggle.checked }));
+    allowSelfImproveToggle.addEventListener("change", () => updateSettings({ allow_self_improve: allowSelfImproveToggle.checked }));
+
+    loadSettings();
+
+    messageInput.addEventListener("keydown", (evt) => {
+      if (evt.key === "Enter" && !evt.shiftKey) {
+        evt.preventDefault();
+        if (typeof form.requestSubmit === "function") {
+          form.requestSubmit();
+        } else {
+          form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+        }
+      }
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const message = messageInput.value.trim();
+      if (!message) return;
+      if (editMode.checked) {
+        const path = editPath.value.trim();
+        if (!path) {
+          addMessage("Please provide a note path for edit mode.", "assistant");
+          return;
+        }
+        addMessage(`Edit request: ${path}`, "user");
+        messageInput.value = "";
+        const resp = await fetch("/edit/propose", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path, instruction: message })
+        });
+        if (!resp.ok) {
+          const text = await resp.text();
+          addMessage(`Edit proposal failed: ${text}`, "assistant");
+          return;
+        }
+        const data = await resp.json();
+        addDiff(data.diff || "", data.token, data.path);
+      } else {
+        addMessage(message, "user");
+        messageInput.value = "";
+        const resp = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message, use_web: useWeb.checked })
+        });
+        if (!resp.ok) {
+          const text = await resp.text();
+          addMessage(`Server error: ${text}`, "assistant");
+          return;
+        }
+        const data = await resp.json();
+        addMessage(data.reply || "", "assistant", data.sources || []);
+      }
+    });
+  </script>
+</body>
+</html>
