@@ -1,0 +1,10 @@
+.DS_Store
+__pycache__/
+*.pyc
+*.log
+server/config.json
+server/profile.json
+index/
+server/index/
+node_modules/
+dist/
